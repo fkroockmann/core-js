@@ -1,0 +1,26 @@
+{
+  "name": "backbee-core-js",
+  "version": "0.1.0",
+  "authors": [
+    "Harris Baptiste <harris.baptiste@lp-digital.fr>",
+    "Nicolas Dufreche <nicolas.dufreche@lp-digital.fr>",
+    "Florian Kroockmann <florian.kroockmann@lp-digital.fr>"
+  ],
+  "description": "BackBee ToolBar core-js framework",
+  "main": "dist/Core.min.js",
+  "moduleType": [
+    "amd"
+  ],
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "backbone": "~1.1.2",
+    "jquery": "~2.1.1",
+    "nunjucks": "~1.1.0",
+    "requirejs": "~2.1.14",
+    "uri.js": "~1.14.1"
+  },
+  "devDependencies": {
+    "es5-shim": "~4.1.0"
+  }
+}
