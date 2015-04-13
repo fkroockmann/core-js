@@ -121,6 +121,57 @@ module.exports = function (grunt) {
             }
         },
 
+        requirejs: {
+            dist: {
+                options: {
+                    name: 'Core',
+                    out: 'dist/Core.js',
+                    optimize: 'none',
+                    include: [
+                        'Core/Api',
+                        'Core/ApplicationContainer',
+                        'Core/ApplicationManager',
+                        'Core/Config',
+                        'Core/ControllerManager',
+                        'Core/DriverHandler',
+                        'Core/Exception',
+                        'Core/Mediator',
+                        'Core/Renderer',
+                        'Core/Request',
+                        'Core/RequestHandler',
+                        'Core/Response',
+                        'Core/RestDriver',
+                        'Core/RouteManager',
+                        'Core/Scope',
+                        'Core/Utils'
+                    ],
+                    mainConfigFile: 'require.build.js',
+                    generateSourceMaps: false,
+                    preserveLicenseComments: true,
+                    exclude: [
+                        'BackBone',
+                        'jquery',
+                        'jsclass',
+                        'underscore',
+                        'nunjucks',
+                        'URIjs/URI'
+                    ]
+                }
+            },
+            distmin: {
+                options: {
+                    name: 'Core',
+                    out: 'dist/Core.min.js',
+                    optimize: 'uglify2',
+                    include: '<%= requirejs.dist.options.include %>',
+                    mainConfigFile: 'require.build.js',
+                    generateSourceMaps: false,
+                    preserveLicenseComments: true,
+                    exclude: '<%= requirejs.dist.options.exclude %>'
+                }
+            }
+        },
+
         /**
          * application testing
          */
@@ -178,6 +229,8 @@ module.exports = function (grunt) {
 
     grunt.loadNpmTasks('grunt-jslint');
     grunt.loadNpmTasks('grunt-contrib-jshint');
+
+    grunt.loadNpmTasks('grunt-contrib-requirejs');
 
     grunt.loadNpmTasks('grunt-contrib-jasmine');
     grunt.loadNpmTasks('grunt-istanbul-coverage');
