@@ -23,8 +23,6 @@ module.exports = function (grunt) {
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
 
-        license: '/*\n * Copyright (c) 2011-2013 Lp digital system\n *\n * This file is part of BackBee.\n *\n * BackBee is free software: you can redistribute it and/or modify\n * it under the terms of the GNU General Public License as published by\n * the Free Software Foundation, either version 3 of the License, or\n * (at your option) any later version.\n *\n * BackBee is distributed in the hope that it will be useful,\n * but WITHOUT ANY WARRANTY; without even the implied warranty of\n * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n * GNU General Public License for more details.\n *\n * You should have received a copy of the GNU General Public License\n * along with BackBee. If not, see <http://www.gnu.org/licenses/>.\n */\n',
-
         /**
          * toolbar files and directories
          */
@@ -35,26 +33,9 @@ module.exports = function (grunt) {
         },
 
         concat: {
-            options: {
-                separator: '',
-                process: function (src, filepath) {
-                    return '\n/* ' + filepath + ' */\n' + src;
-                }
-            },
             dist: {
-                src: ['src/Core.dist.js', 'src/Core.js', 'src/Core/*.js'],
-                dest: 'dist/Core.js'
-            }
-        },
-
-        uglify: {
-            options: {
-                banner: '/*! <%= pkg.name %> <%= pkg.version %> */\n<%= license %>'
-            },
-            core: {
-                files: {
-                    'dist/Core.min.js': ['<%= concat.dist.dest %>']
-                }
+                src: ['license.js', 'dist/Core.min.js'],
+                dest: 'dist/Core.min.js'
             }
         },
 
@@ -145,7 +126,16 @@ module.exports = function (grunt) {
                         'Core/Scope',
                         'Core/Utils'
                     ],
-                    mainConfigFile: 'require.build.js',
+                    paths: {
+                        'Core': 'src/Core',
+                        'jquery': 'bower_components/jquery/dist/jquery',
+                        'jsclass' : 'node_modules/jsclass/min/core',
+                        'underscore': 'bower_components/underscore/underscore',
+                        'nunjucks': 'bower_components/nunjucks/browser/nunjucks',
+                        'BackBone': 'bower_components/backbone/backbone',
+                        'URIjs': 'bower_components/uri.js/src',
+                        'URIjs/URI': 'bower_components/uri.js/src/URI'
+                    },
                     generateSourceMaps: false,
                     preserveLicenseComments: true,
                     exclude: [
@@ -164,9 +154,9 @@ module.exports = function (grunt) {
                     out: 'dist/Core.min.js',
                     optimize: 'uglify2',
                     include: '<%= requirejs.dist.options.include %>',
-                    mainConfigFile: 'require.build.js',
-                    generateSourceMaps: false,
-                    preserveLicenseComments: true,
+                    paths: '<%= requirejs.dist.options.paths %>',
+                    generateSourceMaps: true,
+                    preserveLicenseComments: false,
                     exclude: '<%= requirejs.dist.options.exclude %>'
                 }
             }
@@ -238,6 +228,6 @@ module.exports = function (grunt) {
     // grunt tasks
     grunt.registerTask('default', ['jshint', 'jslint']);
     grunt.registerTask('test', ['jshint', 'jslint', 'jasmine:test']);
-    grunt.registerTask('dist', ['concat', 'uglify', 'jasmine:build']);
-    grunt.registerTask('all', ['jshint', 'jslint', 'concat', 'uglify', 'jasmine:coverage']);
+    grunt.registerTask('dist', ['requirejs', 'concat', 'jasmine:build']);
+    grunt.registerTask('all', ['jshint', 'jslint', 'requirejs', 'jasmine:coverage']);
 };

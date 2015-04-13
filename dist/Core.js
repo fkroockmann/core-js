@@ -1,41 +1,3 @@
-
-/* src/Core.js */
-/*
- * Copyright (c) 2011-2013 Lp digital system
- *
- * This file is part of BackBee.
- *
- * BackBee is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * BackBee is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
- */
-(function () {
-    'use strict';
-
-    define('Core', [
-        'Core/Api',
-        'Core/ApplicationManager',
-        'Core/Mediator',
-        'Core/RouteManager',
-        'Core/ControllerManager',
-        'Core/Utils',
-        'Core/Exception',
-        'Core/Scope',
-        'Core/Config'
-    ], function (Core) {
-        return Object.freeze(Core);
-    });
-}());
-/* src/Core/Api.js */
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -85,7 +47,309 @@ define('Core/Api', [], function () {
     return api;
 });
 
-/* src/Core/ApplicationContainer.js */
+/*
+ * Copyright (c) 2011-2013 Lp digital system
+ *
+ * This file is part of BackBee.
+ *
+ * BackBee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * BackBee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
+ */
+define('Core/Utils', ['jquery', 'Core/Api'], function (jQuery, Api) {
+    'use strict';
+    /**
+     * Simple data container with action events
+     * Events : [onInit, onAdd, onChange, onReplace, onDestroy, onDelete]
+     *
+     **/
+    var SmartList = function SmartList(config) {
+            this.dataContainer = {};
+            this.itemCount = 0;
+            this.idKey = null;
+            this.maxEntry = null;
+            /*events*/
+            this.onChange = function () {
+                return;
+            };
+            this.onDestroy = function () {
+                return;
+            };
+            this.onInit = function () {
+                return;
+            };
+            this.onAdd = function () {
+                return;
+            };
+            this.onReplace = function () {
+                return;
+            };
+            this.onDelete = function () {
+                return;
+            };
+            if (typeof this.init !== 'function') {
+                this.init = function (config) {
+                    if (config && !config.hasOwnProperty("idKey")) {
+                        throw "SmartList:init if a config param is provided a config.idKey is expected";
+                    }
+                    config = config || {};
+                    this.name = config.name || 'list_' + new Date().getTime();
+                    var data = config.data || {};
+                    this.onChange = ((typeof config.onChange === 'function') ? config.onChange : this.onChange);
+                    this.onDestroy = ((typeof config.onDestroy === 'function') ? config.onDestroy : this.onDestroy);
+                    if (config.idKey) {
+                        this.idKey = config.idKey;
+                    }
+                    this.onInit = ((typeof config.onInit === 'function') ? config.onInit : this.onInit);
+                    this.onAdd = ((typeof config.onAdd === 'function') ? config.onAdd : this.onAdd);
+                    this.onReplace = ((typeof config.onReplace === 'function') ? config.onReplace : this.onReplace);
+                    this.onDelete = ((typeof config.onDelete === 'function') ? config.onDelete : this.onDelete);
+                    if (config.maxEntry) {
+                        this.maxEntry = parseInt(config.maxEntry, 10);
+                    }
+                    this.setData(data);
+                    this.itemCount = this.getSize();
+                };
+            }
+            /**
+             * Set max entry into the Smartlist
+             * @param {number} maxEntry [max entry authorized]
+             */
+            SmartList.prototype.setMaxEntry = function (maxEntry) {
+                this.maxEntry = maxEntry || null;
+            };
+            /**
+             * Setter
+             * @param {string} key   [value identifier]
+             * @param {mixed}  value [value]
+             */
+            SmartList.prototype.set = function (key, value) {
+                if (this.idKey && !jQuery.isPlainObject(key)) {
+                    throw "SmartList:set item should be an object when and idKey is set";
+                }
+                if (this.idKey && jQuery.isPlainObject(key)) {
+                    if (!key.hasOwnProperty(this.idKey)) {
+                        throw "SmartList:set should have a key " + this.idKey;
+                    }
+                    value = key;
+                    key = key[this.idKey];
+                }
+
+                if (!this.dataContainer.hasOwnProperty(key)) {
+                    var bound = this.itemCount + 1;
+                    if (this.maxEntry && (bound > this.maxEntry)) {
+                        return;
+                    }
+                    this.itemCount = bound;
+                }
+                this.dataContainer[key] = value;
+                this.onChange(this.dataContainer, this.name, value);
+            };
+            /**
+             * Getter
+             * @param  {string} key [value identifier]
+             * @return {mixed}      [value]
+             */
+            SmartList.prototype.get = function (key) {
+                return this.dataContainer[key] || false;
+            };
+            /**
+             * Destroy the Smartlist
+             */
+            SmartList.prototype.destroy = function () {
+                var self = this;
+                this.dataContainer = {};
+                this.itemCount = 0;
+                this.onDestroy(self);
+            };
+            /**
+             * Reset the Smartlist
+             */
+            SmartList.prototype.reset = function () {
+                this.destroy();
+            };
+            /**
+             * Get all datas
+             * @return {object} [the data container]
+             */
+            SmartList.prototype.getData = function () {
+                return this.dataContainer;
+            };
+            /**
+             * Transform the data container into an Array
+             * @param  {boolean} clear [true if you want a clean array]
+             * @return {array}         [data conainer as array]
+             */
+            SmartList.prototype.toArray = function (clear) {
+                var self = this,
+                    cleanData = [];
+                if (clear) {
+                    jQuery.each(this.dataContainer, function (key) {
+                        cleanData.push(self.dataContainer[key]);
+                    });
+                } else {
+                    cleanData = jQuery.makeArray(this.dataContainer);
+                }
+                return cleanData;
+            };
+            /**
+             * Replace item
+             * @param  {[type]} item [description]
+             * @return {[type]}      [description]
+             */
+            SmartList.prototype.replaceItem = function (item) {
+                if (!arguments.length) {
+                    throw "SmartList:replaceItem expects one parameter";
+                }
+                if (!item.hasOwnProperty(this.idKey)) {
+                    throw "SmartList:deleteItem [item] should have a [" + this.idKey + "] key";
+                }
+                this.dataContainer[item[this.idKey]] = item;
+                this.onReplace(this.dataContainer, this.name, item);
+            };
+            /**
+             * Delete Item
+             * @param  {[type]} item [description]
+             * @return {[type]}      [description]
+             */
+            SmartList.prototype.deleteItem = function (item) {
+                if (!arguments.length) {
+                    throw "SmartList:replaceItem expects one parameter";
+                }
+                if (!jQuery.isPlainObject(item)) {
+                    throw "SmartList:deleteItem [item] should be a object";
+                }
+                if (!item.hasOwnProperty(this.idKey)) {
+                    throw "SmartList:deleteItem [item] should have a [" + this.idKey + "] key";
+                }
+                delete this.dataContainer[item[this.idKey]];
+                this.itemCount = this.itemCount - 1;
+                this.onDelete(this.dataContainer, this.name, item);
+            };
+            /**
+             * Delete item by identifier
+             * @param  {string} identifier [description]
+             */
+            SmartList.prototype.deleteItemById = function (identifier) {
+                if (!this.dataContainer.hasOwnProperty(identifier)) {
+                    return false;
+                }
+                delete this.dataContainer[identifier];
+                this.itemCount = this.itemCount - 1;
+                this.onDelete(this.dataContainer, this.name, identifier);
+            };
+            /**
+             * Set data
+             * @param {mixed}  data  [Data to store]
+             */
+            SmartList.prototype.setData = function (data) {
+                var item,
+                    self = this;
+                if (!data) {
+                    throw "SmartList:setData data must be provided";
+                }
+                if (jQuery.isArray(data)) {
+                    if (!this.idKey) {
+                        throw "SmartList:setData idKey must be provided";
+                    }
+                    jQuery.each(data, function (i) {
+                        item = data[i];
+                        if (item.hasOwnProperty(self.idKey)) {
+                            self.set(item);
+                        }
+                    });
+                } else {
+                    this.dataContainer = data;
+                }
+                this.onInit(this.dataContainer);
+            };
+            /**
+             * Add data
+             * @param {mixed} data [Data to store]
+             */
+            SmartList.prototype.addData = function (data) {
+                var self = this,
+                    item,
+                    items = [];
+                if (jQuery.isArray(data)) {
+                    if (!this.idKey) {
+                        throw "SmartList:addData idKey must be provided";
+                    }
+                    jQuery.each(data, function (i) {
+                        item = data[i];
+                        if (item.hasOwnProperty(self.idKey)) {
+                            self.set(item);
+                            items.push(item);
+                        }
+                    });
+                } else {
+                    this.dataContainer = jQuery.extend(true, this.dataContainer, data);
+                }
+                this.onAdd(items);
+            };
+            /**
+             * Get Smartlist size
+             * @return {number} [the object size]
+             */
+            SmartList.prototype.getSize = function () {
+                var items = this.toArray(true);
+                return items.length;
+            };
+            return this.init(config);
+        },
+        /**
+         * require with Promise
+         * @param  {[type]} dep [description]
+         * @return {[type]}     [description]
+         */
+        requireWithPromise = function (dep, keepRequireContext) {
+            var def = new jQuery.Deferred();
+            if (keepRequireContext) {
+
+                dep.splice(0, 0, 'require');
+
+                require(dep, function (req) {
+                    def.resolve.call(this, req);
+                }, function (reason) {
+                    def.reject(reason);
+                });
+            } else {
+                require(dep, function () {
+                    def.resolve.apply(this, arguments);
+                }, function (reason) {
+                    def.reject(reason);
+                });
+            }
+            return def.promise();
+        },
+
+        castAsArray = function (values) {
+            if (values instanceof Object && !(values instanceof Array)) {
+                values = Object.keys(values).map(
+                    function (key) {
+                        return values[key];
+                    }
+                );
+            }
+            return values;
+        };
+
+    Api.register('SmartList', SmartList);
+    return {
+        SmartList: SmartList,
+        requireWithPromise: requireWithPromise,
+        castAsArray: castAsArray
+    };
+});
 define('Core/ApplicationContainer', ['jquery', 'jsclass', 'Core/Api'], function (jQuery, coreApi) {
     'use strict';
     var instance = null,
@@ -147,7 +411,315 @@ define('Core/ApplicationContainer', ['jquery', 'jsclass', 'Core/Api'], function 
         }
     };
 });
-/* src/Core/ApplicationManager.js */
+/*
+ * Copyright (c) 2011-2013 Lp digital system
+ *
+ * This file is part of BackBee.
+ *
+ * BackBee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * BackBee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
+ */
+define('Core/ControllerManager', ['require', 'Core/Api', 'Core/ApplicationContainer', 'jquery', 'jsclass', 'Core/Utils'], function (require) {
+    'use strict';
+    var Api = require('Core/Api'),
+        jQuery = require('jquery'),
+        utils = require('Core/Utils'),
+        appContainer = require('Core/ApplicationContainer'),
+        controllerContainer = {},
+        shortNameMap = {},
+        controllerInstance = {},
+        enabledController = null,
+        exception = function (code, message) {
+            Api.exception('ControllerManagerException', code, message);
+        },
+        /**
+         *  Controller abstract class
+         *  @type {Object}
+         */
+        AbstractController = new JS.Class({
+            /**
+             * Controller contructor
+             * @return {AbstractController} [description]
+             */
+            initialize: function () {
+                this.state = 0;
+                this.enabled = false;
+                var appInfos = appContainer.getInstance().getByAppInfosName(this.appName);
+                this.mainApp = appInfos.instance;
+            },
+            /**
+             * Depencies loader
+             * @return {promise}
+             */
+            handleImport: function () {
+                var def = new jQuery.Deferred();
+                if (jQuery.isArray(this.config.imports) && this.config.imports.length) {
+                    utils.requireWithPromise(this.config.imports).done(def.resolve).fail(function (reason) {
+                        var error = {
+                            method: 'ControllerManager:handleImport',
+                            message: reason
+                        };
+                        def.reject(error);
+                    });
+                } else {
+                    def.resolve();
+                }
+                return def.promise();
+            },
+
+            beforeCall: function (callName) {
+                var dfd = new jQuery.Deferred(),
+                    self = this;
+
+                if (this.config.define !== undefined &&  this.config.define[callName] !== undefined) {
+                    utils.requireWithPromise(this.config.define[callName]).then(
+                        function () {
+                            dfd.resolve.call(self, require);
+                        },
+                        function (reason) {
+                            Api.exception.silent('ControllerManagerException', 15007, 'Something goes worng during the depencies loading of ' + callName, {service: callName, reason: reason, depencies: self.config.define[callName]});
+                            dfd.reject.call(self);
+                        }
+                    );
+                } else {
+                    dfd.resolve.call(self, false);
+                }
+
+                return dfd.promise();
+            },
+
+            /**
+             * Action automaticly call when the Controller is Enabled
+             * @return {false}
+             */
+            onEnabled: function () {
+                this.enabled = true;
+            },
+            /**
+             * Action automaticly call when the Controller is Disabled
+             * @return {false}
+             */
+            onDisabled: function () {
+                this.enabled = false;
+            },
+            /**
+             * Function used to call controller action
+             * @param  {String} action
+             * @param  {Mixed} params
+             * @return {false}
+             */
+            invoke: function (action, params) {
+                var actionName = action + 'Action';
+                if (typeof this[actionName] !== 'function') {
+                    exception(15001, actionName + ' Action Doesnt Exists in ' + this.getName() + ' Controller');
+                }
+                if (typeof this[actionName] !== 'function') {
+                    exception(15001, actionName + ' Action Doesnt Exists in ' + this.getName() + ' Cotroller');
+                }
+                try {
+                    this[actionName].apply(this, params);
+                } catch (e) {
+                    exception(15002, 'Error while executing [' + actionName + '] in ' + this.getName() + ' controller with message: ' + e);
+                }
+            }
+        }),
+        /**
+         * Change the current controller
+         * @param  {AbstractController} currentController
+         * @return {false}
+         */
+        updateEnabledController = function (currentController) {
+            if (currentController === enabledController) {
+                return;
+            }
+            if (enabledController) {
+                enabledController.onDisabled();
+            }
+            enabledController = currentController;
+            enabledController.onEnabled();
+        },
+        /**
+         * Compute the controller name used into ControllerContainer
+         * @param  {String} controllerName
+         * @return {String}
+         */
+        computeControllerName = function (controllerName) {
+            var ctlName = '',
+                controllerPos = -1;
+            if ('string' === typeof controllerName) {
+                controllerPos = controllerName.indexOf('Controller');
+            }
+            if (controllerPos !== -1) {
+                controllerName = controllerName.substring(0, controllerPos);
+                ctlName = controllerName.toLowerCase() + '.controller';
+            }
+            if (ctlName.length === 0) {
+                exception(15004, 'Controller name do not respect {name}Controller style declaration');
+            }
+            return ctlName;
+        },
+        /**
+         * Automatique controller initialiser before action call execution
+         * @param  {String} appName
+         * @param  {String} controllerName
+         * @param  {jQuery.Deferred} def
+         * @return {False}
+         */
+        initController = function (appName, controllerName, def) {
+            var currentController, fullControllerName = appName + '.' + computeControllerName(controllerName);
+            currentController = new controllerContainer[appName][controllerName]();
+            controllerInstance[fullControllerName] = currentController;
+            currentController.handleImport().then(function () {
+                currentController.onInit(require);
+                updateEnabledController(currentController);
+                def.resolve(currentController);
+            });
+        },
+        /**
+         * Return a short name for the controller. IE MainController will
+         * @param {string} controllerFullName
+         */
+        getControllerShortName = function (controllerFullName) {
+            var controllerName, controllerNameInfos = computeControllerName(controllerFullName);
+            controllerNameInfos = controllerNameInfos.split(".");
+            controllerName = controllerNameInfos[0];
+            return controllerName;
+        },
+        /**
+         * Register a new controller
+         * @param  {String} controllerName
+         * @param  {Object} ControllerDef
+         * @return {False}
+         */
+        registerController = function (controllerName, ControllerDef) {
+            var appName = ControllerDef.appName,
+                controllerShortName = getControllerShortName(controllerName),
+                Constructor = {};
+            if (false === ControllerDef.hasOwnProperty('appName')) {
+                exception(15003, 'Controller should be attached to an App');
+            }
+            if (ControllerDef.hasOwnProperty('initialize')) {
+                delete ControllerDef.initialize;
+            }
+            Constructor = new JS.Class(AbstractController, ControllerDef);
+            Constructor.define('initialize', (function (config) {
+                return function () {
+                    this.callSuper(config);
+                };
+            }(ControllerDef.config)));
+            Constructor.define('getName', (function (name) {
+                return function () {
+                    return name;
+                };
+            }(controllerName)));
+            if (!controllerContainer[appName]) {
+                controllerContainer[appName] = {};
+            }
+            controllerContainer[appName][controllerName] = Constructor;
+            /*Save controller shortname so that it can be used to load services*/
+            controllerShortName = controllerShortName.toLowerCase();
+            shortNameMap[appName + ':' + controllerShortName] = {
+                constructor: Constructor,
+                originalName: controllerName
+            };
+        },
+        /**
+         * Load controller and retrieve it if its already been loaded
+         * @param  {String} appName
+         * @param  {String} controllerName
+         * @return {Object}
+         */
+        loadController = function (appName, controllerName) {
+            var fullControllerName = appName + '.' + computeControllerName(controllerName),
+                def = jQuery.Deferred(),
+                cInstance = '';
+            if (!appName || typeof appName !== 'string') {
+                exception(15005, 'appName have to be defined as String');
+            }
+            cInstance = controllerInstance[fullControllerName];
+            if (cInstance) {
+                updateEnabledController(cInstance);
+                def.resolve(cInstance);
+            } else {
+                if (controllerContainer.hasOwnProperty(appName) && typeof controllerContainer[appName][controllerName] === 'function') {
+                    initController(appName, controllerName, def);
+                } else {
+                    utils.requireWithPromise([fullControllerName]).done(function () {
+                        initController(appName, controllerName, def);
+                    }).fail(def.reject);
+                }
+            }
+            return def.promise();
+        },
+        /*
+         * For every controller a short name is registered that is
+         * loadControllerByShortName allows us to find the controller by using this
+         **/
+        loadControllerByShortName = function (appName, shortControllerName) {
+            var dfd = new jQuery.Deferred(),
+                completeControllerName,
+                controllerInfos,
+                ctlFileName = appName + '.' + shortControllerName + '.controller';
+
+            if (!appName || typeof appName !== 'string') {
+                exception(15005, 'appName have to be defined as String');
+            }
+
+            if (!appName || typeof appName !== 'string') {
+                exception(15006, 'shortControllerName have to be defined as String');
+            }
+
+            controllerInfos = shortNameMap[appName + ':' + shortControllerName];
+
+            if (controllerInfos) {
+                return loadController(appName, controllerInfos.originalName);
+            }
+
+            /*first, because of the use shortName, we need load the controller*/
+            utils.requireWithPromise([ctlFileName]).done(function () {
+                completeControllerName = shortNameMap[appName + ':' + shortControllerName].originalName;
+                return loadController(appName, completeControllerName).done(dfd.resolve).fail(dfd.reject);
+            }).fail(dfd.reject);
+
+            return dfd.promise();
+        },
+        /**
+         * Return the controler corresponding at the current application actualy launched
+         * @param  {String} appName
+         * @return {False}
+         */
+        getAppControllers = function (appName) {
+            if (controllerContainer.hasOwnProperty(appName)) {
+                return controllerContainer[appName];
+            }
+            exception(15006, 'Controller Not Found');
+        },
+        /**
+         * Controller manager api exposition
+         * @type {Object}
+         */
+        ControllerManager = {
+            registerController: registerController,
+            loadController: loadController,
+            loadControllerByShortName: loadControllerByShortName,
+            getAppControllers: getAppControllers,
+            getAllControllers: function () {
+                return controllerContainer;
+            }
+        };
+    Api.register('ControllerManager', ControllerManager);
+    return ControllerManager;
+});
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -584,7 +1156,686 @@ define('Core/ApplicationManager', ['require', 'BackBone', 'jsclass', 'jquery', '
     return ApplicationManager;
 });
 
-/* src/Core/Config.js */
+/*
+ * Copyright (c) 2011-2013 Lp digital system
+ *
+ * This file is part of BackBee.
+ *
+ * BackBee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * BackBee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
+ */
+define('Core/Mediator', ['Core/Api'], function (Api) {
+    'use strict';
+
+    var Component = function topic(callback, context) {
+            this.callback = callback;
+            this.context = context;
+        },
+
+        Mediator = function mediator() {
+            this.topics = {};
+            this.publicated = {};
+            this.subscribe_once = {};
+        };
+
+    /**
+     * Component execution callback
+     * @return {undefined}
+     */
+    Component.prototype.execute = function componentExecution() {
+        if (this.context === undefined) {
+            this.callback.apply(undefined, arguments);
+        } else {
+            this.callback.apply(this.context, arguments);
+        }
+    };
+
+    /**
+     * Subscribe to a topic
+     * @param  {String}   topic    [description]
+     * @param  {Function} callback [description]
+     * @param  {Object}   context  [description]
+     * @return {undefined}
+     */
+    Mediator.prototype.subscribe = function mediatorSubscribe(topic, callback, context) {
+        var component = new Component(callback, context);
+
+        if (!this.topics.hasOwnProperty(topic)) {
+            this.topics[topic] = [];
+        }
+
+        this.topics[topic].push(component);
+
+        if (this.publicated.hasOwnProperty(topic)) {
+            component.execute.apply(component, this.publicated[topic].args);
+        }
+    };
+
+    /**
+     * Publish a topic and keep this topic in memory
+     * @return {undefined}
+     */
+    Mediator.prototype.subscribeOnce = function mediatorSubscribeOnce(topic, callback, context) {
+        if (!this.subscribe_once.hasOwnProperty(topic)) {
+            this.subscribe_once[topic] = [];
+        }
+
+        this.subscribe_once[topic].push(callback);
+        this.subscribe(topic, callback, context);
+    };
+
+    /**
+     * Unsubscribe to a topic
+     * @param  {String}   topic    [description]
+     * @param  {Function} callback [description]
+     * @param  {Object}   context  [description]
+     * @return {undefined}
+     */
+    Mediator.prototype.unsubscribe = function mediatorUnsubscribe(topic, callback) {
+        var i;
+
+        if (this.topics.hasOwnProperty(topic)) {
+            for (i = 0; i < this.topics[topic].length; i = i + 1) {
+                if (this.topics[topic][i].callback === callback) {
+                    this.topics[topic].splice(i, 1);
+                }
+            }
+        }
+    };
+
+    /**
+     * Publish a topic
+     * @return {undefined}
+     */
+    Mediator.prototype.publish = function mediatorPublish() {
+        var args = Array.prototype.slice.call(arguments),
+            topic = args.shift(),
+            i,
+            callback;
+
+        if (this.topics.hasOwnProperty(topic)) {
+            for (i = 0; i < this.topics[topic].length; i = i + 1) {
+                callback = this.topics[topic][i].callback;
+                try {
+                    this.topics[topic][i].execute.apply(this.topics[topic][i], args);
+                } catch (e) {
+                    Api.exception.silent(
+                        'MediatorException',
+                        12201,
+                        'Mediator caught an error when the topic : "' + topic + '" was published.',
+                        {
+                            topic: topic,
+                            context: this.topics[topic][i].context,
+                            callback: this.topics[topic][i].callback,
+                            args: args,
+                            error: e
+                        }
+                    );
+                }
+                if (this.subscribe_once.hasOwnProperty(topic)) {
+                    for (i = 0; i < this.subscribe_once[topic].length; i = i + 1) {
+                        if (this.subscribe_once[topic][i] === callback) {
+                            this.unsubscribe(topic, callback);
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    /**
+     * Publish a topic and keep this topic in memory
+     * @return {undefined}
+     */
+    Mediator.prototype.persistentPublish = function mediatorPersistentPublish() {
+        var args = Array.prototype.slice.call(arguments),
+            topic = args.shift();
+
+        this.publish.apply(this, arguments);
+
+        this.publicated[topic] = {
+            args: args
+        };
+    };
+
+    /**
+     * Remove a topic publish
+     * @param  {String} topic [description]
+     * @return {undefined}
+     */
+    Mediator.prototype.removePublish = function mediatorRemovePublication(topic) {
+        this.publicated[topic] = null;
+        delete this.publicated[topic];
+    };
+
+    Api.register('Mediator', new Mediator());
+});
+
+
+/*
+ * Copyright (c) 2011-2013 Lp digital system
+ *
+ * This file is part of BackBee.
+ *
+ * BackBee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * BackBee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
+ */
+define('Core/RouteManager', ['jquery', 'Core/Api', 'BackBone', 'Core/ApplicationManager', 'jsclass'], function (jQuery, Api, BackBone) {
+    'use strict';
+    var bbApplicationManager = require('Core/ApplicationManager'),
+
+        //use the mediator to avoid a circular dependency
+        routesCollections = {},
+
+        /**
+         * Router handle routes -> dispatch to application manager
+         * Application manager
+         **/
+        Router = new JS.Class({
+
+            /**
+             * Router's constructor
+             */
+            initialize: function () {
+                var ExtRouter = BackBone.Router.extend({
+                    execute: function (callback, args) {
+                        if (typeof callback === 'function') {
+                            callback.apply(this, args);
+                        }
+                    }
+                });
+
+                this.routes = {};
+                this.mainRouter = new ExtRouter({});
+                this.handleApplicationLinks();
+            },
+
+            /**
+             * Enable listener on click of every body a tags
+             */
+            handleApplicationLinks: function () {
+                /* si href ne rien faire */
+                var self = this,
+                    url,
+                    routeInfos;
+
+                jQuery("body").delegate("a", "click", function (e) {
+                    var action = jQuery(this).data("action");
+                    if ("string" === typeof action) {
+                        e.preventDefault();
+                        routeInfos = routesCollections[action]; // layout:home
+                        if (!jQuery.isPlainObject(routeInfos)) {
+                            throw "RouteManager:handleApplicationLinks route " + action + " can't be found";
+                        }
+
+                        url = self.buildLink(action);
+                        self.navigate(url);
+                    }
+                });
+            },
+
+            /**
+             * Builds with linkParams and returns the path according to routeName
+             *
+             * @param  {String} routeName
+             * @param  {Object} linkParams
+             *
+             * @return {String}
+             */
+            buildLink: function (routeName, linkParams) {
+                var routeInfos,
+                    link;
+
+                if (false === routesCollections.hasOwnProperty(routeName)) {
+                    throw 'RouteManager:buildLink routeInfos can\'t be found';
+                }
+
+                routeInfos = routesCollections[routeName];
+                linkParams = linkParams || routeInfos.defaults;
+                link = routeInfos.url;
+                if (routeInfos.hasOwnProperty("defaults")) {
+                    jQuery.each(routeInfos.defaults, function (key, value) {
+                        link = link.replace(key, value);
+                    });
+                }
+
+                return link;
+            },
+
+            /**
+             * Navigate to path and invoke the right action
+             *
+             * @param  {String}  path
+             * @param  {Boolean} triggerEvent
+             * @param  {Boolean} updateRoute
+             */
+            navigate: function (path, triggerEvent, updateRoute) {
+                var conf = {
+                    trigger: triggerEvent || true,
+                    replace: updateRoute || true
+                };
+                this.mainRouter.navigate(path, conf);
+            },
+
+            /**
+             * It acts like the FrontController and invoke the right controller
+             *
+             * @param  {Object} actionInfos
+             */
+            genericRouteHandler: function (actionInfos) {
+                var params = jQuery.merge([], arguments);
+                params.pop();
+                bbApplicationManager.invoke(actionInfos, params);
+            },
+
+            /**
+             * Register routeInfos into BackBee router
+             *
+             * @param  {Object} routeInfos
+             */
+            registerRoute: function (routeInfos) {
+                var actionsName = routeInfos.completeName.split(':');
+                actionsName = actionsName[0];
+                this.mainRouter.route(routeInfos.url, routeInfos.completeName, jQuery.proxy(this.genericRouteHandler, this, actionsName + ':' + routeInfos.action));
+            }
+
+        }),
+        routerInstance = new Router(),
+        RouteManager = {
+
+            /**
+             * Initialize RouteManager and start BackBone history component
+             *
+             * @param  {Object} conf
+             * @return {Object} self
+             */
+            initRouter: function (conf) {
+                conf = conf || {};
+                BackBone.history.start(conf);
+
+                return this;
+            },
+
+            /**
+             * Register application's routes into RouteManager; a routeConfig object must look like:
+             *
+             * {
+             *     prefix: 'YOUR_PREFIX', // optionnal
+             *     routes: {
+             *         home: {
+             *             url: 'URL_PATTERN', // example: /foo/bar, you can also have dynamic parameter like: /foo/bar/1, /foo/bar/2, etc. the associated pattern is: /foo/bar/:page
+             *             action: '',
+             *             defaults: { // defaults key is optionnal
+             *                  ":page": 1
+             *             }
+             *         }
+             *     }
+             * }
+             *
+             * @param  {String} appname
+             * @param  {Object} routeConf
+             */
+            registerRoute: function (appname, routeConf) {
+                var routes = routeConf.routes,
+                    prefix = '',
+                    url = '';
+
+                if (!routeConf.hasOwnProperty('routes')) {
+                    throw 'A routes key must be provided';
+                }
+
+                if (!jQuery.isPlainObject(routeConf.routes)) {
+                    throw 'Routes must be an object';
+                }
+
+                if (typeof routeConf.prefix === 'string') {
+                    prefix = routeConf.prefix;
+                }
+
+                jQuery.each(routes, function (name, routeInfos) {
+                    if (!jQuery.isPlainObject(routeInfos)) {
+                        throw name + ' route infos must be an object';
+                    }
+
+                    if (!routeInfos.hasOwnProperty('url')) {
+                        throw name + ' route infos must have `url` property';
+                    }
+
+                    if (!routeInfos.hasOwnProperty('action')) {
+                        throw name + ' route infos must have `action` property';
+                    }
+
+                    if (prefix.length !== 0) {
+                        url = (routeInfos.url.indexOf('/') === 0) ? routeInfos.url.substring(1) : routeInfos.url;
+                        routeInfos.url = prefix + '/' + url;
+                    }
+
+                    routeInfos.completeName = appname + ':' + name;
+
+                    routesCollections[routeInfos.completeName] = routeInfos;
+                    routerInstance.registerRoute(routeInfos);
+                });
+            },
+
+            /**
+             * Navigate to path and invoke the associated action (alias of this.navigateByPath() to maintain
+             * compatibility)
+             *
+             * @param  {Object}  path
+             * @param  {Boolean} triggerEvent
+             * @param  {Boolean} updateRoute
+             */
+            navigate: function (path, triggerEvent, updateRoute) {
+                this.navigateByPath(path, triggerEvent, updateRoute);
+            },
+
+            /**
+             * Navigate to path and invoke the associated action
+             *
+             * @param  {Object}  path
+             * @param  {Boolean} triggerEvent
+             * @param  {Boolean} updateRoute
+             */
+            navigateByPath: function (path, triggerEvent, updateRoute) {
+                routerInstance.navigate(path, triggerEvent, updateRoute);
+            },
+
+            /**
+             * [navigateByName description]
+             * @param  {String}  name
+             * @param  {Boolean} triggerEvent
+             * @param  {Boolean} updateRoute
+             */
+            navigateByName: function (name, triggerEvent, updateRoute) {
+                this.navigateByPath(routerInstance.buildLink(name), triggerEvent, updateRoute);
+            }
+        };
+
+    Api.register('RouteManager', RouteManager);
+
+    return RouteManager;
+});
+
+/*
+ * Copyright (c) 2011-2013 Lp digital system
+ *
+ * This file is part of BackBee.
+ *
+ * BackBee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * BackBee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
+ */
+define('Core/Exception', ['Core/Api', 'jsclass'], function () {
+    'use strict';
+
+    /**
+     * Exception is the base class for all BackBee toolbar exceptions
+     */
+    var Exception = new JS.Class({
+
+            Api: require('Core/Api'),
+
+            /**
+             * Construct the exception
+             */
+            initialize: function (name, message, code, params) {
+                this.name = name;
+                this.message = message;
+                this.code = code;
+                this.params = params;
+                this.stack = this.getStack();
+            },
+
+            /**
+             * Gets the stack trace
+             * @returns {array}
+             */
+            getStack: function () {
+                var err = new Error(this.name),
+                    cleanStack = [],
+                    stack,
+                    key;
+
+                if (err.stack) {
+                    stack = err.stack.split("\n");
+                    cleanStack = stack.slice(5);
+
+                    for (key in cleanStack) {
+                        if (cleanStack.hasOwnProperty(key)) {
+                            cleanStack[key] = this.parseStackLine(cleanStack[key]);
+                        }
+                    }
+                }
+
+                return cleanStack;
+            },
+
+
+            /**
+             * Function to stock the Exception in Api.get('errors') and Api.get('lastError')
+             * @param {Exception} error
+             */
+            pushError: function (error, Api) {
+                if (undefined === Api.get('errors')) {
+                    Api.set('errors', []);
+                }
+
+                Api.get('errors').push(error);
+                Api.set('lastError', error);
+            },
+
+            /**
+             * Function to parse a stak trace line
+             * @param {string} line  Should be something like <call>@<file>:<lineNumber>
+             * @returns {object}
+             */
+            parseStackLine: function (stackline) {
+                var regex = /^\s*at\s+([\w\W]+)\(([\w\W]+\.js)[\w\W]*:(\d+):(\d+)\)/i,
+                    values = regex.exec(stackline),
+                    call = ((values && values[1]) ? values[1] : stackline),
+                    file = ((values && values[2]) ? values[2] : null),
+                    line = ((values && values[3]) ? values[3] : null),
+                    column = ((values && values[4]) ? values[4] : null);
+
+                return {
+                    column: column,
+                    line: line,
+                    file: file,
+                    call: call
+                };
+            }
+        }),
+
+        throwNewException = function (name, code, message, params) {
+            name = name || 'UnknowException';
+            code = code || 500;
+            message = message || 'No description found for this exception.';
+            params = params || {};
+
+            var expected = new Exception(name, message, code, params);
+            expected.pushError(expected, expected.Api);
+
+            throw 'Error n ' + code + ' ' + name + ': ' + message;
+        };
+
+    throwNewException.silent = function (name, code, message, params) {
+        try {
+            throwNewException(name, code, message, params);
+        } catch (e) {
+            return e;
+        }
+    };
+
+    require('Core/Api').register('exception', throwNewException);
+});
+
+/*
+ * Copyright (c) 2011-2013 Lp digital system
+ *
+ * This file is part of BackBee.
+ *
+ * BackBee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * BackBee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
+ */
+/**
+ * @category    Core
+ * @package     Scope
+ * @copyright   Lp digital system
+ * @author      n.dufreche <nicolas.dufreche@lp-digital.fr>
+ */
+define('Core/Scope', ['Core/Api', 'underscore'], function (Api, Under) {
+    'use strict';
+
+    var Scope = function scope() {
+            this.scopes = [];
+            Api.Mediator.subscribeOnce('on:application:ready', function () {
+                Api.Mediator.persistentPublish('scope:global:opening');
+            });
+        },
+
+        /**
+         * Open and  close scope
+         * @param  {Array} scopes
+         * @param  {boolean} opening
+         * @return {false}
+         */
+        toggle = function scopesToggle(scopes, opening) {
+            var i;
+            for (i = 0; i < scopes.length; i = i + 1) {
+                if (opening === true) {
+                    Api.Mediator.publish('scope:' + scopes[i].toLowerCase() + ':opening');
+                } else {
+                    Api.Mediator.publish('scope:' + scopes[i].toLowerCase() + ':closing');
+                }
+            }
+        },
+
+        checkScope = function scopeCheck(scopes) {
+            var i;
+            for (i = 0; i < scopes.length; i = i + 1) {
+                if ('string' !== typeof scopes[i]) {
+                    Api.exception('ScopeException', 12101, 'All scope have to be a string.');
+                }
+            }
+        };
+
+    /**
+     * Register new scope and close actually scopes open
+     * @return {false}
+     */
+    Scope.prototype.register = function scopeRegister() {
+        var openingScopes = Under.difference(arguments, this.scopes),
+            closingScopes = Under.difference(this.scopes, arguments);
+
+        checkScope(arguments);
+
+        toggle(closingScopes, false);
+        toggle(openingScopes, true);
+
+        this.scopes = Under.difference(this.scopes, closingScopes);
+        this.scopes = Under.union(this.scopes, openingScopes);
+    };
+
+    /**
+     * Open a scope
+     * @param  {String} scope
+     * @return {false}
+     */
+    Scope.prototype.open = function scopeOpen(scope) {
+        var index = Under.indexOf(this.scopes, scope);
+
+        checkScope([scope]);
+
+        if (-1 === index) {
+            toggle([scope], true);
+            this.scopes.push(scope);
+        }
+    };
+
+    /**
+     * Close a scope
+     * @param  {String} scope
+     * @return {false}
+     */
+    Scope.prototype.close = function scopeClose(scope) {
+        var index = Under.indexOf(this.scopes, scope);
+
+        checkScope([scope]);
+
+        if (-1 !== index) {
+            toggle([scope], false);
+            this.scopes = Under.without(this.scopes, scope);
+        }
+    };
+
+    /**
+     * Subscribe to scope
+     * @param  {String} scope
+     * @param  {Function} openingCallback
+     * @param  {Function} closingCallback
+     * @return {false}
+     */
+    Scope.prototype.subscribe = function scopeSuscribe(scope, openingCallback, closingCallback) {
+        var index = Under.indexOf(this.scopes, scope.toLowerCase());
+
+        if ('string' !== typeof scope || 'function' !== typeof openingCallback || 'function' !== typeof closingCallback) {
+            Api.exception('ScopeException', 12102, 'Scope subscription was incorrect.');
+        }
+
+        if (-1 !== index) {
+            try {
+                openingCallback.apply(undefined);
+            } catch (e) {
+                Api.exception.silent('ScopeException', 12103, 'Error while running Opening callback in scope "' + scope + '"" with message: ' + e);
+            }
+        }
+
+        Api.Mediator.subscribe('scope:' + scope.toLowerCase() + ':opening', openingCallback);
+        Api.Mediator.subscribe('scope:' + scope.toLowerCase() + ':closing', closingCallback);
+    };
+
+    Api.register('Scope', new Scope());
+});
+
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -669,7 +1920,6 @@ define('Core/Config', ['require', 'Core/Api'], function (require) {
     Core.register('config', getConfig);
 });
 
-/* src/Core/ControllerManager.js */
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -688,298 +1938,23 @@ define('Core/Config', ['require', 'Core/Api'], function (require) {
  * You should have received a copy of the GNU General Public License
  * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
  */
-define('Core/ControllerManager', ['require', 'Core/Api', 'Core/ApplicationContainer', 'jquery', 'jsclass', 'Core/Utils'], function (require) {
+(function () {
     'use strict';
-    var Api = require('Core/Api'),
-        jQuery = require('jquery'),
-        utils = require('Core/Utils'),
-        appContainer = require('Core/ApplicationContainer'),
-        controllerContainer = {},
-        shortNameMap = {},
-        controllerInstance = {},
-        enabledController = null,
-        exception = function (code, message) {
-            Api.exception('ControllerManagerException', code, message);
-        },
-        /**
-         *  Controller abstract class
-         *  @type {Object}
-         */
-        AbstractController = new JS.Class({
-            /**
-             * Controller contructor
-             * @return {AbstractController} [description]
-             */
-            initialize: function () {
-                this.state = 0;
-                this.enabled = false;
-                var appInfos = appContainer.getInstance().getByAppInfosName(this.appName);
-                this.mainApp = appInfos.instance;
-            },
-            /**
-             * Depencies loader
-             * @return {promise}
-             */
-            handleImport: function () {
-                var def = new jQuery.Deferred();
-                if (jQuery.isArray(this.config.imports) && this.config.imports.length) {
-                    utils.requireWithPromise(this.config.imports).done(def.resolve).fail(function (reason) {
-                        var error = {
-                            method: 'ControllerManager:handleImport',
-                            message: reason
-                        };
-                        def.reject(error);
-                    });
-                } else {
-                    def.resolve();
-                }
-                return def.promise();
-            },
 
-            beforeCall: function (callName) {
-                var dfd = new jQuery.Deferred(),
-                    self = this;
-
-                if (this.config.define !== undefined &&  this.config.define[callName] !== undefined) {
-                    utils.requireWithPromise(this.config.define[callName]).then(
-                        function () {
-                            dfd.resolve.call(self, require);
-                        },
-                        function (reason) {
-                            Api.exception.silent('ControllerManagerException', 15007, 'Something goes worng during the depencies loading of ' + callName, {service: callName, reason: reason, depencies: self.config.define[callName]});
-                            dfd.reject.call(self);
-                        }
-                    );
-                } else {
-                    dfd.resolve.call(self, false);
-                }
-
-                return dfd.promise();
-            },
-
-            /**
-             * Action automaticly call when the Controller is Enabled
-             * @return {false}
-             */
-            onEnabled: function () {
-                this.enabled = true;
-            },
-            /**
-             * Action automaticly call when the Controller is Disabled
-             * @return {false}
-             */
-            onDisabled: function () {
-                this.enabled = false;
-            },
-            /**
-             * Function used to call controller action
-             * @param  {String} action
-             * @param  {Mixed} params
-             * @return {false}
-             */
-            invoke: function (action, params) {
-                var actionName = action + 'Action';
-                if (typeof this[actionName] !== 'function') {
-                    exception(15001, actionName + ' Action Doesnt Exists in ' + this.getName() + ' Controller');
-                }
-                if (typeof this[actionName] !== 'function') {
-                    exception(15001, actionName + ' Action Doesnt Exists in ' + this.getName() + ' Cotroller');
-                }
-                try {
-                    this[actionName].apply(this, params);
-                } catch (e) {
-                    exception(15002, 'Error while executing [' + actionName + '] in ' + this.getName() + ' controller with message: ' + e);
-                }
-            }
-        }),
-        /**
-         * Change the current controller
-         * @param  {AbstractController} currentController
-         * @return {false}
-         */
-        updateEnabledController = function (currentController) {
-            if (currentController === enabledController) {
-                return;
-            }
-            if (enabledController) {
-                enabledController.onDisabled();
-            }
-            enabledController = currentController;
-            enabledController.onEnabled();
-        },
-        /**
-         * Compute the controller name used into ControllerContainer
-         * @param  {String} controllerName
-         * @return {String}
-         */
-        computeControllerName = function (controllerName) {
-            var ctlName = '',
-                controllerPos = -1;
-            if ('string' === typeof controllerName) {
-                controllerPos = controllerName.indexOf('Controller');
-            }
-            if (controllerPos !== -1) {
-                controllerName = controllerName.substring(0, controllerPos);
-                ctlName = controllerName.toLowerCase() + '.controller';
-            }
-            if (ctlName.length === 0) {
-                exception(15004, 'Controller name do not respect {name}Controller style declaration');
-            }
-            return ctlName;
-        },
-        /**
-         * Automatique controller initialiser before action call execution
-         * @param  {String} appName
-         * @param  {String} controllerName
-         * @param  {jQuery.Deferred} def
-         * @return {False}
-         */
-        initController = function (appName, controllerName, def) {
-            var currentController, fullControllerName = appName + '.' + computeControllerName(controllerName);
-            currentController = new controllerContainer[appName][controllerName]();
-            controllerInstance[fullControllerName] = currentController;
-            currentController.handleImport().then(function () {
-                currentController.onInit(require);
-                updateEnabledController(currentController);
-                def.resolve(currentController);
-            });
-        },
-        /**
-         * Return a short name for the controller. IE MainController will
-         * @param {string} controllerFullName
-         */
-        getControllerShortName = function (controllerFullName) {
-            var controllerName, controllerNameInfos = computeControllerName(controllerFullName);
-            controllerNameInfos = controllerNameInfos.split(".");
-            controllerName = controllerNameInfos[0];
-            return controllerName;
-        },
-        /**
-         * Register a new controller
-         * @param  {String} controllerName
-         * @param  {Object} ControllerDef
-         * @return {False}
-         */
-        registerController = function (controllerName, ControllerDef) {
-            var appName = ControllerDef.appName,
-                controllerShortName = getControllerShortName(controllerName),
-                Constructor = {};
-            if (false === ControllerDef.hasOwnProperty('appName')) {
-                exception(15003, 'Controller should be attached to an App');
-            }
-            if (ControllerDef.hasOwnProperty('initialize')) {
-                delete ControllerDef.initialize;
-            }
-            Constructor = new JS.Class(AbstractController, ControllerDef);
-            Constructor.define('initialize', (function (config) {
-                return function () {
-                    this.callSuper(config);
-                };
-            }(ControllerDef.config)));
-            Constructor.define('getName', (function (name) {
-                return function () {
-                    return name;
-                };
-            }(controllerName)));
-            if (!controllerContainer[appName]) {
-                controllerContainer[appName] = {};
-            }
-            controllerContainer[appName][controllerName] = Constructor;
-            /*Save controller shortname so that it can be used to load services*/
-            controllerShortName = controllerShortName.toLowerCase();
-            shortNameMap[appName + ':' + controllerShortName] = {
-                constructor: Constructor,
-                originalName: controllerName
-            };
-        },
-        /**
-         * Load controller and retrieve it if its already been loaded
-         * @param  {String} appName
-         * @param  {String} controllerName
-         * @return {Object}
-         */
-        loadController = function (appName, controllerName) {
-            var fullControllerName = appName + '.' + computeControllerName(controllerName),
-                def = jQuery.Deferred(),
-                cInstance = '';
-            if (!appName || typeof appName !== 'string') {
-                exception(15005, 'appName have to be defined as String');
-            }
-            cInstance = controllerInstance[fullControllerName];
-            if (cInstance) {
-                updateEnabledController(cInstance);
-                def.resolve(cInstance);
-            } else {
-                if (controllerContainer.hasOwnProperty(appName) && typeof controllerContainer[appName][controllerName] === 'function') {
-                    initController(appName, controllerName, def);
-                } else {
-                    utils.requireWithPromise([fullControllerName]).done(function () {
-                        initController(appName, controllerName, def);
-                    }).fail(def.reject);
-                }
-            }
-            return def.promise();
-        },
-        /*
-         * For every controller a short name is registered that is
-         * loadControllerByShortName allows us to find the controller by using this
-         **/
-        loadControllerByShortName = function (appName, shortControllerName) {
-            var dfd = new jQuery.Deferred(),
-                completeControllerName,
-                controllerInfos,
-                ctlFileName = appName + '.' + shortControllerName + '.controller';
-
-            if (!appName || typeof appName !== 'string') {
-                exception(15005, 'appName have to be defined as String');
-            }
-
-            if (!appName || typeof appName !== 'string') {
-                exception(15006, 'shortControllerName have to be defined as String');
-            }
-
-            controllerInfos = shortNameMap[appName + ':' + shortControllerName];
-
-            if (controllerInfos) {
-                return loadController(appName, controllerInfos.originalName);
-            }
-
-            /*first, because of the use shortName, we need load the controller*/
-            utils.requireWithPromise([ctlFileName]).done(function () {
-                completeControllerName = shortNameMap[appName + ':' + shortControllerName].originalName;
-                return loadController(appName, completeControllerName).done(dfd.resolve).fail(dfd.reject);
-            }).fail(dfd.reject);
-
-            return dfd.promise();
-        },
-        /**
-         * Return the controler corresponding at the current application actualy launched
-         * @param  {String} appName
-         * @return {False}
-         */
-        getAppControllers = function (appName) {
-            if (controllerContainer.hasOwnProperty(appName)) {
-                return controllerContainer[appName];
-            }
-            exception(15006, 'Controller Not Found');
-        },
-        /**
-         * Controller manager api exposition
-         * @type {Object}
-         */
-        ControllerManager = {
-            registerController: registerController,
-            loadController: loadController,
-            loadControllerByShortName: loadControllerByShortName,
-            getAppControllers: getAppControllers,
-            getAllControllers: function () {
-                return controllerContainer;
-            }
-        };
-    Api.register('ControllerManager', ControllerManager);
-    return ControllerManager;
-});
-/* src/Core/DriverHandler.js */
+    define('Core', [
+        'Core/Api',
+        'Core/ApplicationManager',
+        'Core/Mediator',
+        'Core/RouteManager',
+        'Core/ControllerManager',
+        'Core/Utils',
+        'Core/Exception',
+        'Core/Scope',
+        'Core/Config'
+    ], function (Core) {
+        return Object.freeze(Core);
+    });
+}());
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -1302,297 +2277,6 @@ define('Core/DriverHandler', ['underscore', 'jquery', 'jsclass'], function (us, 
     return new JS.Singleton(DriverHandler);
 });
 
-/* src/Core/Exception.js */
-/*
- * Copyright (c) 2011-2013 Lp digital system
- *
- * This file is part of BackBee.
- *
- * BackBee is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * BackBee is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
- */
-define('Core/Exception', ['Core/Api', 'jsclass'], function () {
-    'use strict';
-
-    /**
-     * Exception is the base class for all BackBee toolbar exceptions
-     */
-    var Exception = new JS.Class({
-
-            Api: require('Core/Api'),
-
-            /**
-             * Construct the exception
-             */
-            initialize: function (name, message, code, params) {
-                this.name = name;
-                this.message = message;
-                this.code = code;
-                this.params = params;
-                this.stack = this.getStack();
-            },
-
-            /**
-             * Gets the stack trace
-             * @returns {array}
-             */
-            getStack: function () {
-                var err = new Error(this.name),
-                    cleanStack = [],
-                    stack,
-                    key;
-
-                if (err.stack) {
-                    stack = err.stack.split("\n");
-                    cleanStack = stack.slice(5);
-
-                    for (key in cleanStack) {
-                        if (cleanStack.hasOwnProperty(key)) {
-                            cleanStack[key] = this.parseStackLine(cleanStack[key]);
-                        }
-                    }
-                }
-
-                return cleanStack;
-            },
-
-
-            /**
-             * Function to stock the Exception in Api.get('errors') and Api.get('lastError')
-             * @param {Exception} error
-             */
-            pushError: function (error, Api) {
-                if (undefined === Api.get('errors')) {
-                    Api.set('errors', []);
-                }
-
-                Api.get('errors').push(error);
-                Api.set('lastError', error);
-            },
-
-            /**
-             * Function to parse a stak trace line
-             * @param {string} line  Should be something like <call>@<file>:<lineNumber>
-             * @returns {object}
-             */
-            parseStackLine: function (stackline) {
-                var regex = /^\s*at\s+([\w\W]+)\(([\w\W]+\.js)[\w\W]*:(\d+):(\d+)\)/i,
-                    values = regex.exec(stackline),
-                    call = ((values && values[1]) ? values[1] : stackline),
-                    file = ((values && values[2]) ? values[2] : null),
-                    line = ((values && values[3]) ? values[3] : null),
-                    column = ((values && values[4]) ? values[4] : null);
-
-                return {
-                    column: column,
-                    line: line,
-                    file: file,
-                    call: call
-                };
-            }
-        }),
-
-        throwNewException = function (name, code, message, params) {
-            name = name || 'UnknowException';
-            code = code || 500;
-            message = message || 'No description found for this exception.';
-            params = params || {};
-
-            var expected = new Exception(name, message, code, params);
-            expected.pushError(expected, expected.Api);
-
-            throw 'Error n ' + code + ' ' + name + ': ' + message;
-        };
-
-    throwNewException.silent = function (name, code, message, params) {
-        try {
-            throwNewException(name, code, message, params);
-        } catch (e) {
-            return e;
-        }
-    };
-
-    require('Core/Api').register('exception', throwNewException);
-});
-
-/* src/Core/Mediator.js */
-/*
- * Copyright (c) 2011-2013 Lp digital system
- *
- * This file is part of BackBee.
- *
- * BackBee is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * BackBee is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
- */
-define('Core/Mediator', ['Core/Api'], function (Api) {
-    'use strict';
-
-    var Component = function topic(callback, context) {
-            this.callback = callback;
-            this.context = context;
-        },
-
-        Mediator = function mediator() {
-            this.topics = {};
-            this.publicated = {};
-            this.subscribe_once = {};
-        };
-
-    /**
-     * Component execution callback
-     * @return {undefined}
-     */
-    Component.prototype.execute = function componentExecution() {
-        if (this.context === undefined) {
-            this.callback.apply(undefined, arguments);
-        } else {
-            this.callback.apply(this.context, arguments);
-        }
-    };
-
-    /**
-     * Subscribe to a topic
-     * @param  {String}   topic    [description]
-     * @param  {Function} callback [description]
-     * @param  {Object}   context  [description]
-     * @return {undefined}
-     */
-    Mediator.prototype.subscribe = function mediatorSubscribe(topic, callback, context) {
-        var component = new Component(callback, context);
-
-        if (!this.topics.hasOwnProperty(topic)) {
-            this.topics[topic] = [];
-        }
-
-        this.topics[topic].push(component);
-
-        if (this.publicated.hasOwnProperty(topic)) {
-            component.execute.apply(component, this.publicated[topic].args);
-        }
-    };
-
-    /**
-     * Publish a topic and keep this topic in memory
-     * @return {undefined}
-     */
-    Mediator.prototype.subscribeOnce = function mediatorSubscribeOnce(topic, callback, context) {
-        if (!this.subscribe_once.hasOwnProperty(topic)) {
-            this.subscribe_once[topic] = [];
-        }
-
-        this.subscribe_once[topic].push(callback);
-        this.subscribe(topic, callback, context);
-    };
-
-    /**
-     * Unsubscribe to a topic
-     * @param  {String}   topic    [description]
-     * @param  {Function} callback [description]
-     * @param  {Object}   context  [description]
-     * @return {undefined}
-     */
-    Mediator.prototype.unsubscribe = function mediatorUnsubscribe(topic, callback) {
-        var i;
-
-        if (this.topics.hasOwnProperty(topic)) {
-            for (i = 0; i < this.topics[topic].length; i = i + 1) {
-                if (this.topics[topic][i].callback === callback) {
-                    this.topics[topic].splice(i, 1);
-                }
-            }
-        }
-    };
-
-    /**
-     * Publish a topic
-     * @return {undefined}
-     */
-    Mediator.prototype.publish = function mediatorPublish() {
-        var args = Array.prototype.slice.call(arguments),
-            topic = args.shift(),
-            i,
-            callback;
-
-        if (this.topics.hasOwnProperty(topic)) {
-            for (i = 0; i < this.topics[topic].length; i = i + 1) {
-                callback = this.topics[topic][i].callback;
-                try {
-                    this.topics[topic][i].execute.apply(this.topics[topic][i], args);
-                } catch (e) {
-                    Api.exception.silent(
-                        'MediatorException',
-                        12201,
-                        'Mediator caught an error when the topic : "' + topic + '" was published.',
-                        {
-                            topic: topic,
-                            context: this.topics[topic][i].context,
-                            callback: this.topics[topic][i].callback,
-                            args: args,
-                            error: e
-                        }
-                    );
-                }
-                if (this.subscribe_once.hasOwnProperty(topic)) {
-                    for (i = 0; i < this.subscribe_once[topic].length; i = i + 1) {
-                        if (this.subscribe_once[topic][i] === callback) {
-                            this.unsubscribe(topic, callback);
-                        }
-                    }
-                }
-            }
-        }
-    };
-
-    /**
-     * Publish a topic and keep this topic in memory
-     * @return {undefined}
-     */
-    Mediator.prototype.persistentPublish = function mediatorPersistentPublish() {
-        var args = Array.prototype.slice.call(arguments),
-            topic = args.shift();
-
-        this.publish.apply(this, arguments);
-
-        this.publicated[topic] = {
-            args: args
-        };
-    };
-
-    /**
-     * Remove a topic publish
-     * @param  {String} topic [description]
-     * @return {undefined}
-     */
-    Mediator.prototype.removePublish = function mediatorRemovePublication(topic) {
-        this.publicated[topic] = null;
-        delete this.publicated[topic];
-    };
-
-    Api.register('Mediator', new Mediator());
-});
-
-
-/* src/Core/Renderer.js */
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -1731,7 +2415,6 @@ define('Core/Renderer', ['require', 'nunjucks', 'Core', 'jquery', 'Core/Utils', 
     return ApiRender;
 });
 
-/* src/Core/Request.js */
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -1891,147 +2574,6 @@ define('Core/Request', ['jsclass'], function () {
     return Request;
 });
 
-/* src/Core/RequestHandler.js */
-/*
- * Copyright (c) 2011-2013 Lp digital system
- *
- * This file is part of BackBee.
- *
- * BackBee is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * BackBee is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
- */
-define('Core/RequestHandler', ['Core/Api', 'jquery', 'underscore', 'BackBone', 'Core/Response', 'jsclass'], function (Api, jQuery, Underscore, Backbone, CoreResponse) {
-    'use strict';
-
-    /**
-     * RequestHandler object
-     */
-    var RequestHandler = new JS.Class({
-
-        /**
-         * Initialize of RequestHandler
-         */
-        initialize: function () {
-            Underscore.extend(this, Backbone.Events);
-        },
-
-        /**
-         * Send the request to the server and build
-         * a Response object
-         * @returns Response
-         */
-        send: function (request) {
-            var self = this,
-                dfd = jQuery.Deferred();
-
-            if (null !== request) {
-
-                Api.Mediator.publish('request:send:before', request);
-
-                jQuery.ajax({
-                    url: request.getUrl(),
-                    type: request.getMethod(),
-                    data: request.getData(),
-                    headers: request.getHeaders()
-                }).done(function (data, textStatus, xhr) {
-                    var response = self.buildResponse(
-                            xhr.getAllResponseHeaders(),
-                            data,
-                            xhr.responseText,
-                            xhr.status,
-                            textStatus,
-                            ''
-                        );
-
-                    Api.Mediator.publish('request:send:done', response);
-
-                    dfd.resolve(response.getData(), response);
-                }).fail(function (xhr, textStatus, errorThrown) {
-                    var response = self.buildResponse(
-                            xhr.getAllResponseHeaders(),
-                            '',
-                            xhr.responseText,
-                            xhr.status,
-                            textStatus,
-                            errorThrown
-                        );
-
-                    Api.Mediator.publish('request:send:fail', response);
-
-                    dfd.reject(response.getData(), response);
-                });
-            }
-
-            return dfd.promise();
-        },
-
-        /**
-         * Build the Response Object
-         * @param {String} headers
-         * @param {String} data
-         * @param {String} rawData
-         * @param {Number} status
-         * @param {String} statusText
-         * @param {String} errorText
-         */
-        buildResponse: function (headers, data, rawData, status, statusText, errorText) {
-            var Response = new CoreResponse();
-
-            this.buildHeaders(Response, headers);
-
-            Response.setData(data);
-            Response.setRawData(rawData);
-            Response.setStatus(status);
-            Response.setStatusText(statusText);
-            Response.setErrorText(errorText);
-
-            return Response;
-        },
-
-        /**
-         * Build String headers, split \r to have all key/value
-         * and split each with ":" for have a key and value
-         * and use addHeader function to set each header
-         * @param {Object} Response
-         * @param {String} headers
-         */
-        buildHeaders: function (Response, headers) {
-            var headersSplit,
-                header,
-                name,
-                value,
-                key,
-                identifierPos;
-
-            headersSplit = headers.split('\r');
-            for (key in headersSplit) {
-                if (headersSplit.hasOwnProperty(key)) {
-                    header = headersSplit[key];
-                    identifierPos = header.indexOf(':');
-                    if (-1 !== identifierPos) {
-                        name = header.substring(0, identifierPos).trim();
-                        value = header.substring(identifierPos + 1).trim();
-                        Response.addHeader(name, value);
-                    }
-                }
-            }
-        }
-    });
-
-    return new JS.Singleton(RequestHandler);
-});
-
-/* src/Core/Response.js */
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -2327,7 +2869,145 @@ define('Core/Response', ['jsclass'], function () {
     return Response;
 });
 
-/* src/Core/RestDriver.js */
+/*
+ * Copyright (c) 2011-2013 Lp digital system
+ *
+ * This file is part of BackBee.
+ *
+ * BackBee is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * BackBee is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
+ */
+define('Core/RequestHandler', ['Core/Api', 'jquery', 'underscore', 'BackBone', 'Core/Response', 'jsclass'], function (Api, jQuery, Underscore, Backbone, CoreResponse) {
+    'use strict';
+
+    /**
+     * RequestHandler object
+     */
+    var RequestHandler = new JS.Class({
+
+        /**
+         * Initialize of RequestHandler
+         */
+        initialize: function () {
+            Underscore.extend(this, Backbone.Events);
+        },
+
+        /**
+         * Send the request to the server and build
+         * a Response object
+         * @returns Response
+         */
+        send: function (request) {
+            var self = this,
+                dfd = jQuery.Deferred();
+
+            if (null !== request) {
+
+                Api.Mediator.publish('request:send:before', request);
+
+                jQuery.ajax({
+                    url: request.getUrl(),
+                    type: request.getMethod(),
+                    data: request.getData(),
+                    headers: request.getHeaders()
+                }).done(function (data, textStatus, xhr) {
+                    var response = self.buildResponse(
+                            xhr.getAllResponseHeaders(),
+                            data,
+                            xhr.responseText,
+                            xhr.status,
+                            textStatus,
+                            ''
+                        );
+
+                    Api.Mediator.publish('request:send:done', response);
+
+                    dfd.resolve(response.getData(), response);
+                }).fail(function (xhr, textStatus, errorThrown) {
+                    var response = self.buildResponse(
+                            xhr.getAllResponseHeaders(),
+                            '',
+                            xhr.responseText,
+                            xhr.status,
+                            textStatus,
+                            errorThrown
+                        );
+
+                    Api.Mediator.publish('request:send:fail', response);
+
+                    dfd.reject(response.getData(), response);
+                });
+            }
+
+            return dfd.promise();
+        },
+
+        /**
+         * Build the Response Object
+         * @param {String} headers
+         * @param {String} data
+         * @param {String} rawData
+         * @param {Number} status
+         * @param {String} statusText
+         * @param {String} errorText
+         */
+        buildResponse: function (headers, data, rawData, status, statusText, errorText) {
+            var Response = new CoreResponse();
+
+            this.buildHeaders(Response, headers);
+
+            Response.setData(data);
+            Response.setRawData(rawData);
+            Response.setStatus(status);
+            Response.setStatusText(statusText);
+            Response.setErrorText(errorText);
+
+            return Response;
+        },
+
+        /**
+         * Build String headers, split \r to have all key/value
+         * and split each with ":" for have a key and value
+         * and use addHeader function to set each header
+         * @param {Object} Response
+         * @param {String} headers
+         */
+        buildHeaders: function (Response, headers) {
+            var headersSplit,
+                header,
+                name,
+                value,
+                key,
+                identifierPos;
+
+            headersSplit = headers.split('\r');
+            for (key in headersSplit) {
+                if (headersSplit.hasOwnProperty(key)) {
+                    header = headersSplit[key];
+                    identifierPos = header.indexOf(':');
+                    if (-1 !== identifierPos) {
+                        name = header.substring(0, identifierPos).trim();
+                        value = header.substring(identifierPos + 1).trim();
+                        Response.addHeader(name, value);
+                    }
+                }
+            }
+        }
+    });
+
+    return new JS.Singleton(RequestHandler);
+});
+
 /*
  * Copyright (c) 2011-2013 Lp digital system
  *
@@ -2531,703 +3211,5 @@ define('Core/RestDriver', ['Core/Request', 'Core/RequestHandler', 'URIjs/URI', '
 
             return this;
         }
-    };
-});
-/* src/Core/RouteManager.js */
-/*
- * Copyright (c) 2011-2013 Lp digital system
- *
- * This file is part of BackBee.
- *
- * BackBee is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * BackBee is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
- */
-define('Core/RouteManager', ['jquery', 'Core/Api', 'BackBone', 'Core/ApplicationManager', 'jsclass'], function (jQuery, Api, BackBone) {
-    'use strict';
-    var bbApplicationManager = require('Core/ApplicationManager'),
-
-        //use the mediator to avoid a circular dependency
-        routesCollections = {},
-
-        /**
-         * Router handle routes -> dispatch to application manager
-         * Application manager
-         **/
-        Router = new JS.Class({
-
-            /**
-             * Router's constructor
-             */
-            initialize: function () {
-                var ExtRouter = BackBone.Router.extend({
-                    execute: function (callback, args) {
-                        if (typeof callback === 'function') {
-                            callback.apply(this, args);
-                        }
-                    }
-                });
-
-                this.routes = {};
-                this.mainRouter = new ExtRouter({});
-                this.handleApplicationLinks();
-            },
-
-            /**
-             * Enable listener on click of every body a tags
-             */
-            handleApplicationLinks: function () {
-                /* si href ne rien faire */
-                var self = this,
-                    url,
-                    routeInfos;
-
-                jQuery("body").delegate("a", "click", function (e) {
-                    var action = jQuery(this).data("action");
-                    if ("string" === typeof action) {
-                        e.preventDefault();
-                        routeInfos = routesCollections[action]; // layout:home
-                        if (!jQuery.isPlainObject(routeInfos)) {
-                            throw "RouteManager:handleApplicationLinks route " + action + " can't be found";
-                        }
-
-                        url = self.buildLink(action);
-                        self.navigate(url);
-                    }
-                });
-            },
-
-            /**
-             * Builds with linkParams and returns the path according to routeName
-             *
-             * @param  {String} routeName
-             * @param  {Object} linkParams
-             *
-             * @return {String}
-             */
-            buildLink: function (routeName, linkParams) {
-                var routeInfos,
-                    link;
-
-                if (false === routesCollections.hasOwnProperty(routeName)) {
-                    throw 'RouteManager:buildLink routeInfos can\'t be found';
-                }
-
-                routeInfos = routesCollections[routeName];
-                linkParams = linkParams || routeInfos.defaults;
-                link = routeInfos.url;
-                if (routeInfos.hasOwnProperty("defaults")) {
-                    jQuery.each(routeInfos.defaults, function (key, value) {
-                        link = link.replace(key, value);
-                    });
-                }
-
-                return link;
-            },
-
-            /**
-             * Navigate to path and invoke the right action
-             *
-             * @param  {String}  path
-             * @param  {Boolean} triggerEvent
-             * @param  {Boolean} updateRoute
-             */
-            navigate: function (path, triggerEvent, updateRoute) {
-                var conf = {
-                    trigger: triggerEvent || true,
-                    replace: updateRoute || true
-                };
-                this.mainRouter.navigate(path, conf);
-            },
-
-            /**
-             * It acts like the FrontController and invoke the right controller
-             *
-             * @param  {Object} actionInfos
-             */
-            genericRouteHandler: function (actionInfos) {
-                var params = jQuery.merge([], arguments);
-                params.pop();
-                bbApplicationManager.invoke(actionInfos, params);
-            },
-
-            /**
-             * Register routeInfos into BackBee router
-             *
-             * @param  {Object} routeInfos
-             */
-            registerRoute: function (routeInfos) {
-                var actionsName = routeInfos.completeName.split(':');
-                actionsName = actionsName[0];
-                this.mainRouter.route(routeInfos.url, routeInfos.completeName, jQuery.proxy(this.genericRouteHandler, this, actionsName + ':' + routeInfos.action));
-            }
-
-        }),
-        routerInstance = new Router(),
-        RouteManager = {
-
-            /**
-             * Initialize RouteManager and start BackBone history component
-             *
-             * @param  {Object} conf
-             * @return {Object} self
-             */
-            initRouter: function (conf) {
-                conf = conf || {};
-                BackBone.history.start(conf);
-
-                return this;
-            },
-
-            /**
-             * Register application's routes into RouteManager; a routeConfig object must look like:
-             *
-             * {
-             *     prefix: 'YOUR_PREFIX', // optionnal
-             *     routes: {
-             *         home: {
-             *             url: 'URL_PATTERN', // example: /foo/bar, you can also have dynamic parameter like: /foo/bar/1, /foo/bar/2, etc. the associated pattern is: /foo/bar/:page
-             *             action: '',
-             *             defaults: { // defaults key is optionnal
-             *                  ":page": 1
-             *             }
-             *         }
-             *     }
-             * }
-             *
-             * @param  {String} appname
-             * @param  {Object} routeConf
-             */
-            registerRoute: function (appname, routeConf) {
-                var routes = routeConf.routes,
-                    prefix = '',
-                    url = '';
-
-                if (!routeConf.hasOwnProperty('routes')) {
-                    throw 'A routes key must be provided';
-                }
-
-                if (!jQuery.isPlainObject(routeConf.routes)) {
-                    throw 'Routes must be an object';
-                }
-
-                if (typeof routeConf.prefix === 'string') {
-                    prefix = routeConf.prefix;
-                }
-
-                jQuery.each(routes, function (name, routeInfos) {
-                    if (!jQuery.isPlainObject(routeInfos)) {
-                        throw name + ' route infos must be an object';
-                    }
-
-                    if (!routeInfos.hasOwnProperty('url')) {
-                        throw name + ' route infos must have `url` property';
-                    }
-
-                    if (!routeInfos.hasOwnProperty('action')) {
-                        throw name + ' route infos must have `action` property';
-                    }
-
-                    if (prefix.length !== 0) {
-                        url = (routeInfos.url.indexOf('/') === 0) ? routeInfos.url.substring(1) : routeInfos.url;
-                        routeInfos.url = prefix + '/' + url;
-                    }
-
-                    routeInfos.completeName = appname + ':' + name;
-
-                    routesCollections[routeInfos.completeName] = routeInfos;
-                    routerInstance.registerRoute(routeInfos);
-                });
-            },
-
-            /**
-             * Navigate to path and invoke the associated action (alias of this.navigateByPath() to maintain
-             * compatibility)
-             *
-             * @param  {Object}  path
-             * @param  {Boolean} triggerEvent
-             * @param  {Boolean} updateRoute
-             */
-            navigate: function (path, triggerEvent, updateRoute) {
-                this.navigateByPath(path, triggerEvent, updateRoute);
-            },
-
-            /**
-             * Navigate to path and invoke the associated action
-             *
-             * @param  {Object}  path
-             * @param  {Boolean} triggerEvent
-             * @param  {Boolean} updateRoute
-             */
-            navigateByPath: function (path, triggerEvent, updateRoute) {
-                routerInstance.navigate(path, triggerEvent, updateRoute);
-            },
-
-            /**
-             * [navigateByName description]
-             * @param  {String}  name
-             * @param  {Boolean} triggerEvent
-             * @param  {Boolean} updateRoute
-             */
-            navigateByName: function (name, triggerEvent, updateRoute) {
-                this.navigateByPath(routerInstance.buildLink(name), triggerEvent, updateRoute);
-            }
-        };
-
-    Api.register('RouteManager', RouteManager);
-
-    return RouteManager;
-});
-
-/* src/Core/Scope.js */
-/*
- * Copyright (c) 2011-2013 Lp digital system
- *
- * This file is part of BackBee.
- *
- * BackBee is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * BackBee is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
- */
-/**
- * @category    Core
- * @package     Scope
- * @copyright   Lp digital system
- * @author      n.dufreche <nicolas.dufreche@lp-digital.fr>
- */
-define('Core/Scope', ['Core/Api', 'underscore'], function (Api, Under) {
-    'use strict';
-
-    var Scope = function scope() {
-            this.scopes = [];
-            Api.Mediator.subscribeOnce('on:application:ready', function () {
-                Api.Mediator.persistentPublish('scope:global:opening');
-            });
-        },
-
-        /**
-         * Open and  close scope
-         * @param  {Array} scopes
-         * @param  {boolean} opening
-         * @return {false}
-         */
-        toggle = function scopesToggle(scopes, opening) {
-            var i;
-            for (i = 0; i < scopes.length; i = i + 1) {
-                if (opening === true) {
-                    Api.Mediator.publish('scope:' + scopes[i].toLowerCase() + ':opening');
-                } else {
-                    Api.Mediator.publish('scope:' + scopes[i].toLowerCase() + ':closing');
-                }
-            }
-        },
-
-        checkScope = function scopeCheck(scopes) {
-            var i;
-            for (i = 0; i < scopes.length; i = i + 1) {
-                if ('string' !== typeof scopes[i]) {
-                    Api.exception('ScopeException', 12101, 'All scope have to be a string.');
-                }
-            }
-        };
-
-    /**
-     * Register new scope and close actually scopes open
-     * @return {false}
-     */
-    Scope.prototype.register = function scopeRegister() {
-        var openingScopes = Under.difference(arguments, this.scopes),
-            closingScopes = Under.difference(this.scopes, arguments);
-
-        checkScope(arguments);
-
-        toggle(closingScopes, false);
-        toggle(openingScopes, true);
-
-        this.scopes = Under.difference(this.scopes, closingScopes);
-        this.scopes = Under.union(this.scopes, openingScopes);
-    };
-
-    /**
-     * Open a scope
-     * @param  {String} scope
-     * @return {false}
-     */
-    Scope.prototype.open = function scopeOpen(scope) {
-        var index = Under.indexOf(this.scopes, scope);
-
-        checkScope([scope]);
-
-        if (-1 === index) {
-            toggle([scope], true);
-            this.scopes.push(scope);
-        }
-    };
-
-    /**
-     * Close a scope
-     * @param  {String} scope
-     * @return {false}
-     */
-    Scope.prototype.close = function scopeClose(scope) {
-        var index = Under.indexOf(this.scopes, scope);
-
-        checkScope([scope]);
-
-        if (-1 !== index) {
-            toggle([scope], false);
-            this.scopes = Under.without(this.scopes, scope);
-        }
-    };
-
-    /**
-     * Subscribe to scope
-     * @param  {String} scope
-     * @param  {Function} openingCallback
-     * @param  {Function} closingCallback
-     * @return {false}
-     */
-    Scope.prototype.subscribe = function scopeSuscribe(scope, openingCallback, closingCallback) {
-        var index = Under.indexOf(this.scopes, scope.toLowerCase());
-
-        if ('string' !== typeof scope || 'function' !== typeof openingCallback || 'function' !== typeof closingCallback) {
-            Api.exception('ScopeException', 12102, 'Scope subscription was incorrect.');
-        }
-
-        if (-1 !== index) {
-            try {
-                openingCallback.apply(undefined);
-            } catch (e) {
-                Api.exception.silent('ScopeException', 12103, 'Error while running Opening callback in scope "' + scope + '"" with message: ' + e);
-            }
-        }
-
-        Api.Mediator.subscribe('scope:' + scope.toLowerCase() + ':opening', openingCallback);
-        Api.Mediator.subscribe('scope:' + scope.toLowerCase() + ':closing', closingCallback);
-    };
-
-    Api.register('Scope', new Scope());
-});
-
-/* src/Core/Utils.js */
-/*
- * Copyright (c) 2011-2013 Lp digital system
- *
- * This file is part of BackBee.
- *
- * BackBee is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * BackBee is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
- */
-define('Core/Utils', ['jquery', 'Core/Api'], function (jQuery, Api) {
-    'use strict';
-    /**
-     * Simple data container with action events
-     * Events : [onInit, onAdd, onChange, onReplace, onDestroy, onDelete]
-     *
-     **/
-    var SmartList = function SmartList(config) {
-            this.dataContainer = {};
-            this.itemCount = 0;
-            this.idKey = null;
-            this.maxEntry = null;
-            /*events*/
-            this.onChange = function () {
-                return;
-            };
-            this.onDestroy = function () {
-                return;
-            };
-            this.onInit = function () {
-                return;
-            };
-            this.onAdd = function () {
-                return;
-            };
-            this.onReplace = function () {
-                return;
-            };
-            this.onDelete = function () {
-                return;
-            };
-            if (typeof this.init !== 'function') {
-                this.init = function (config) {
-                    if (config && !config.hasOwnProperty("idKey")) {
-                        throw "SmartList:init if a config param is provided a config.idKey is expected";
-                    }
-                    config = config || {};
-                    this.name = config.name || 'list_' + new Date().getTime();
-                    var data = config.data || {};
-                    this.onChange = ((typeof config.onChange === 'function') ? config.onChange : this.onChange);
-                    this.onDestroy = ((typeof config.onDestroy === 'function') ? config.onDestroy : this.onDestroy);
-                    if (config.idKey) {
-                        this.idKey = config.idKey;
-                    }
-                    this.onInit = ((typeof config.onInit === 'function') ? config.onInit : this.onInit);
-                    this.onAdd = ((typeof config.onAdd === 'function') ? config.onAdd : this.onAdd);
-                    this.onReplace = ((typeof config.onReplace === 'function') ? config.onReplace : this.onReplace);
-                    this.onDelete = ((typeof config.onDelete === 'function') ? config.onDelete : this.onDelete);
-                    if (config.maxEntry) {
-                        this.maxEntry = parseInt(config.maxEntry, 10);
-                    }
-                    this.setData(data);
-                    this.itemCount = this.getSize();
-                };
-            }
-            /**
-             * Set max entry into the Smartlist
-             * @param {number} maxEntry [max entry authorized]
-             */
-            SmartList.prototype.setMaxEntry = function (maxEntry) {
-                this.maxEntry = maxEntry || null;
-            };
-            /**
-             * Setter
-             * @param {string} key   [value identifier]
-             * @param {mixed}  value [value]
-             */
-            SmartList.prototype.set = function (key, value) {
-                if (this.idKey && !jQuery.isPlainObject(key)) {
-                    throw "SmartList:set item should be an object when and idKey is set";
-                }
-                if (this.idKey && jQuery.isPlainObject(key)) {
-                    if (!key.hasOwnProperty(this.idKey)) {
-                        throw "SmartList:set should have a key " + this.idKey;
-                    }
-                    value = key;
-                    key = key[this.idKey];
-                }
-
-                if (!this.dataContainer.hasOwnProperty(key)) {
-                    var bound = this.itemCount + 1;
-                    if (this.maxEntry && (bound > this.maxEntry)) {
-                        return;
-                    }
-                    this.itemCount = bound;
-                }
-                this.dataContainer[key] = value;
-                this.onChange(this.dataContainer, this.name, value);
-            };
-            /**
-             * Getter
-             * @param  {string} key [value identifier]
-             * @return {mixed}      [value]
-             */
-            SmartList.prototype.get = function (key) {
-                return this.dataContainer[key] || false;
-            };
-            /**
-             * Destroy the Smartlist
-             */
-            SmartList.prototype.destroy = function () {
-                var self = this;
-                this.dataContainer = {};
-                this.itemCount = 0;
-                this.onDestroy(self);
-            };
-            /**
-             * Reset the Smartlist
-             */
-            SmartList.prototype.reset = function () {
-                this.destroy();
-            };
-            /**
-             * Get all datas
-             * @return {object} [the data container]
-             */
-            SmartList.prototype.getData = function () {
-                return this.dataContainer;
-            };
-            /**
-             * Transform the data container into an Array
-             * @param  {boolean} clear [true if you want a clean array]
-             * @return {array}         [data conainer as array]
-             */
-            SmartList.prototype.toArray = function (clear) {
-                var self = this,
-                    cleanData = [];
-                if (clear) {
-                    jQuery.each(this.dataContainer, function (key) {
-                        cleanData.push(self.dataContainer[key]);
-                    });
-                } else {
-                    cleanData = jQuery.makeArray(this.dataContainer);
-                }
-                return cleanData;
-            };
-            /**
-             * Replace item
-             * @param  {[type]} item [description]
-             * @return {[type]}      [description]
-             */
-            SmartList.prototype.replaceItem = function (item) {
-                if (!arguments.length) {
-                    throw "SmartList:replaceItem expects one parameter";
-                }
-                if (!item.hasOwnProperty(this.idKey)) {
-                    throw "SmartList:deleteItem [item] should have a [" + this.idKey + "] key";
-                }
-                this.dataContainer[item[this.idKey]] = item;
-                this.onReplace(this.dataContainer, this.name, item);
-            };
-            /**
-             * Delete Item
-             * @param  {[type]} item [description]
-             * @return {[type]}      [description]
-             */
-            SmartList.prototype.deleteItem = function (item) {
-                if (!arguments.length) {
-                    throw "SmartList:replaceItem expects one parameter";
-                }
-                if (!jQuery.isPlainObject(item)) {
-                    throw "SmartList:deleteItem [item] should be a object";
-                }
-                if (!item.hasOwnProperty(this.idKey)) {
-                    throw "SmartList:deleteItem [item] should have a [" + this.idKey + "] key";
-                }
-                delete this.dataContainer[item[this.idKey]];
-                this.itemCount = this.itemCount - 1;
-                this.onDelete(this.dataContainer, this.name, item);
-            };
-            /**
-             * Delete item by identifier
-             * @param  {string} identifier [description]
-             */
-            SmartList.prototype.deleteItemById = function (identifier) {
-                if (!this.dataContainer.hasOwnProperty(identifier)) {
-                    return false;
-                }
-                delete this.dataContainer[identifier];
-                this.itemCount = this.itemCount - 1;
-                this.onDelete(this.dataContainer, this.name, identifier);
-            };
-            /**
-             * Set data
-             * @param {mixed}  data  [Data to store]
-             */
-            SmartList.prototype.setData = function (data) {
-                var item,
-                    self = this;
-                if (!data) {
-                    throw "SmartList:setData data must be provided";
-                }
-                if (jQuery.isArray(data)) {
-                    if (!this.idKey) {
-                        throw "SmartList:setData idKey must be provided";
-                    }
-                    jQuery.each(data, function (i) {
-                        item = data[i];
-                        if (item.hasOwnProperty(self.idKey)) {
-                            self.set(item);
-                        }
-                    });
-                } else {
-                    this.dataContainer = data;
-                }
-                this.onInit(this.dataContainer);
-            };
-            /**
-             * Add data
-             * @param {mixed} data [Data to store]
-             */
-            SmartList.prototype.addData = function (data) {
-                var self = this,
-                    item,
-                    items = [];
-                if (jQuery.isArray(data)) {
-                    if (!this.idKey) {
-                        throw "SmartList:addData idKey must be provided";
-                    }
-                    jQuery.each(data, function (i) {
-                        item = data[i];
-                        if (item.hasOwnProperty(self.idKey)) {
-                            self.set(item);
-                            items.push(item);
-                        }
-                    });
-                } else {
-                    this.dataContainer = jQuery.extend(true, this.dataContainer, data);
-                }
-                this.onAdd(items);
-            };
-            /**
-             * Get Smartlist size
-             * @return {number} [the object size]
-             */
-            SmartList.prototype.getSize = function () {
-                var items = this.toArray(true);
-                return items.length;
-            };
-            return this.init(config);
-        },
-        /**
-         * require with Promise
-         * @param  {[type]} dep [description]
-         * @return {[type]}     [description]
-         */
-        requireWithPromise = function (dep, keepRequireContext) {
-            var def = new jQuery.Deferred();
-            if (keepRequireContext) {
-
-                dep.splice(0, 0, 'require');
-
-                require(dep, function (req) {
-                    def.resolve.call(this, req);
-                }, function (reason) {
-                    def.reject(reason);
-                });
-            } else {
-                require(dep, function () {
-                    def.resolve.apply(this, arguments);
-                }, function (reason) {
-                    def.reject(reason);
-                });
-            }
-            return def.promise();
-        },
-
-        castAsArray = function (values) {
-            if (values instanceof Object && !(values instanceof Array)) {
-                values = Object.keys(values).map(
-                    function (key) {
-                        return values[key];
-                    }
-                );
-            }
-            return values;
-        };
-
-    Api.register('SmartList', SmartList);
-    return {
-        SmartList: SmartList,
-        requireWithPromise: requireWithPromise,
-        castAsArray: castAsArray
     };
 });
