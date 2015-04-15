@@ -47,7 +47,7 @@ define(['Core', 'Core/RouteManager', 'BackBone'], function (Core, Router, BackBo
                 Router.registerRoute('app', {});
                 expect(true).toBe(false);
             } catch (e) {
-                expect(e).toEqual('A routes key must be provided');
+                expect(e).toEqual('Error n 500 RouteManagerException: A routes key must be provided');
             }
         });
         it('Register route with a non-object route config will throw an exception', function () {
@@ -57,7 +57,7 @@ define(['Core', 'Core/RouteManager', 'BackBone'], function (Core, Router, BackBo
                 });
                 expect(true).toBe(false);
             } catch (e) {
-                expect(e).toEqual('Routes must be an object');
+                expect(e).toEqual('Error n 500 RouteManagerException: Routes must be an object');
             }
         });
         it('Register route which is not an object will throw an exception', function () {
@@ -69,7 +69,7 @@ define(['Core', 'Core/RouteManager', 'BackBone'], function (Core, Router, BackBo
                 });
                 expect(true).toBe(false);
             } catch (e) {
-                expect(e).toEqual('test route infos must be an object');
+                expect(e).toEqual('Error n 500 RouteManagerException: test route infos must be an object');
             }
         });
         it('Register route which has no `url` property will throw an exception', function () {
@@ -81,7 +81,7 @@ define(['Core', 'Core/RouteManager', 'BackBone'], function (Core, Router, BackBo
                 });
                 expect(true).toBe(false);
             } catch (e) {
-                expect(e).toEqual('test route infos must have `url` property');
+                expect(e).toEqual('Error n 500 RouteManagerException: test route infos must have `url` property');
             }
         });
         it('Register route which has no action `property` will throw an exception', function () {
@@ -95,7 +95,7 @@ define(['Core', 'Core/RouteManager', 'BackBone'], function (Core, Router, BackBo
                 });
                 expect(true).toBe(false);
             } catch (e) {
-                expect(e).toEqual('test route infos must have `action` property');
+                expect(e).toEqual('Error n 500 RouteManagerException: test route infos must have `action` property');
             }
         });
         xit('Navigate to TestController::fooAction by path', function (done) {
@@ -138,7 +138,7 @@ define(['Core', 'Core/RouteManager', 'BackBone'], function (Core, Router, BackBo
                     Router.navigateByName('test:foobar');
                     expect(true).toEqual(false);
                 } catch (e) {
-                    expect(e).toEqual('RouteManager:buildLink routeInfos can\'t be found');
+                    expect(e).toEqual('Error n 500 RouteManagerException: buildLink routeInfos can\'t be found');
                 }
                 done();
             }, 100);
