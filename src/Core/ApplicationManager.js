@@ -60,7 +60,6 @@ define('Core/ApplicationManager', ['require', 'BackBone', 'jsclass', 'jquery', '
                 this.state = 0;
                 underscore.extend(this, Backbone.Events);
                 this.config = jQuery.extend(true, this.config, config);
-                this.onInit();
             },
 
             getMainRoute: function () {
