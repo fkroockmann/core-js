@@ -60,7 +60,6 @@ define('Core/ApplicationManager', ['require', 'BackBone', 'jsclass', 'jquery', '
                 this.state = 0;
                 underscore.extend(this, Backbone.Events);
                 this.config = jQuery.extend(true, this.config, config);
-                this.onInit();
             },
 
             getMainRoute: function () {
@@ -214,14 +213,25 @@ define('Core/ApplicationManager', ['require', 'BackBone', 'jsclass', 'jquery', '
                         if (currentApplication) {
                             currentApplication.onStop();
                         }
+
+                        applicationInfos.init = true;
                         AppContainer.register(applicationInfos);
+
                         applicationInfos.instance.onInit();
                         applicationInfos.instance.onStart();
                         instance = applicationInfos.instance;
                     } else {
                         currentApplication.onStop();
                         /** application already exists call resume */
-                        applicationInfos.instance.onResume();
+
+                        if (applicationInfos.init !== true) {
+                            applicationInfos.instance.onInit();
+                            applicationInfos.instance.onStart();
+                            applicationInfos.init = true;
+                        } else {
+                            applicationInfos.instance.onResume();
+                        }
+
                         instance = applicationInfos.instance;
                     }
                     currentApplication = instance;
