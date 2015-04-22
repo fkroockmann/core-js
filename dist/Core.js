@@ -935,14 +935,25 @@ define('Core/ApplicationManager', ['require', 'BackBone', 'jsclass', 'jquery', '
                         if (currentApplication) {
                             currentApplication.onStop();
                         }
+
+                        applicationInfos.init = true;
                         AppContainer.register(applicationInfos);
+
                         applicationInfos.instance.onInit();
                         applicationInfos.instance.onStart();
                         instance = applicationInfos.instance;
                     } else {
                         currentApplication.onStop();
                         /** application already exists call resume */
-                        applicationInfos.instance.onResume();
+
+                        if (applicationInfos.init !== true) {
+                            applicationInfos.instance.onInit();
+                            applicationInfos.instance.onStart();
+                            applicationInfos.init = true;
+                        } else {
+                            applicationInfos.instance.onResume();
+                        }
+
                         instance = applicationInfos.instance;
                     }
                     currentApplication = instance;
@@ -1731,15 +1742,13 @@ define('Core/Exception', ['Core/Api', 'jsclass'], function () {
  * You should have received a copy of the GNU General Public License
  * along with BackBee. If not, see <http://www.gnu.org/licenses/>.
  */
-/**
- * @category    Core
- * @package     Scope
- * @copyright   Lp digital system
- * @author      n.dufreche <nicolas.dufreche@lp-digital.fr>
- */
 define('Core/Scope', ['Core/Api', 'underscore'], function (Api, Under) {
     'use strict';
 
+        /**
+         * Scope constructor
+         * @return {false}
+         */
     var Scope = function scope() {
             this.scopes = [];
             Api.Mediator.subscribeOnce('on:application:ready', function () {
@@ -1764,6 +1773,11 @@ define('Core/Scope', ['Core/Api', 'underscore'], function (Api, Under) {
             }
         },
 
+        /**
+         * Check if a scope is correctly define
+         * @param {Array} scopes
+         * @return {false}
+         */
         checkScope = function scopeCheck(scopes) {
             var i;
             for (i = 0; i < scopes.length; i = i + 1) {
@@ -1772,6 +1786,14 @@ define('Core/Scope', ['Core/Api', 'underscore'], function (Api, Under) {
                 }
             }
         };
+
+    /**
+     * Return true or false if the scope is open
+     * @return {boolean}
+     */
+    Scope.prototype.isOpen = function scopeIsOpen(scope) {
+        return -1 === Under.indexOf(this.scopes, scope) ? false : true;
+    };
 
     /**
      * Register new scope and close actually scopes open
