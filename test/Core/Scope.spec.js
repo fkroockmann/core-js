@@ -35,6 +35,8 @@ define(['require', 'Core'], function () {
             api.Scope.subscribe('spec', mock.specCallbackOpening, mock.specCallbackClosing);
             api.Scope.register('spec', 'test');
             expect(mock.specCallbackOpening).toHaveBeenCalled();
+            expect(api.Scope.isOpen('spec')).toBe(true);
+            expect(api.Scope.isOpen('inexistant')).toBe(false);
         });
 
         it('test scope closing', function () {
