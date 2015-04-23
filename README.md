@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/backbee/core-js.svg?branch=master)](https://travis-ci.org/backbee/core-js)
+[![Build Status](https://travis-ci.org/backbee/core-js.svg?branch=master)](https://travis-ci.org/backbee/core-js) [![Inline docs](http://inch-ci.org/github/backbee/core-js.svg?branch=master)](http://inch-ci.org/github/backbee/core-js)
 
 # Core JS Framework
 
