@@ -26,6 +26,11 @@ define('Core/Renderer', ['require', 'nunjucks', 'Core', 'jquery', 'Core/Utils', 
         instance,
 
         Renderer = new JS.Class({
+
+            /**
+             * Constructor
+             * @returns {Void}
+             */
             initialize: function () {
                 var error_tpl = config.error_tpl || '<p>Error while loading template</p>',
                     placeholder = config.placeholder || '<p>Loading...</p>';
@@ -37,14 +42,28 @@ define('Core/Renderer', ['require', 'nunjucks', 'Core', 'jquery', 'Core/Utils', 
                 this.functions = {};
             },
 
+            /**
+             * Gets the selected templating engine.
+             * @returns {nunjucks}
+             */
             getEngine: function () {
                 return this.engine;
             },
 
+            /**
+             * Add a filter to the selected templating engine.
+             * @see {@link https://mozilla.github.io/nunjucks/api#Registering-custom-filters}
+             * @returns {Void}
+             */
             addFilter: function (name, func, async) {
                 this.env.addFilter(name, func, async);
             },
 
+            /**
+             * Add a function to the selected templating engine.
+             * @see {@link https://mozilla.github.io/nunjucks/templating.html#global-functions}
+             * @returns {Void}
+             */
             addFunction: function (name, func) {
                 if (typeof func === 'function') {
                     this.functions[name] = func;
@@ -86,6 +105,12 @@ define('Core/Renderer', ['require', 'nunjucks', 'Core', 'jquery', 'Core/Utils', 
                 return jQuery(config.placeholder);
             },
 
+            /**
+             * Render a view from a nunjucks template with provided parameters.
+             * @see {@link https://mozilla.github.io/nunjucks/api.html#renderstring}
+             * @returns {String}
+             * @throw {RenderException}
+             */
             render: function (template, params) {
                 params = this.mergeParameters(params);
                 try {
