@@ -273,9 +273,8 @@ define('Core/DriverHandler', ['underscore', 'jquery', 'jsclass'], function (us, 
                 done = function (data, response) {
                     dfd.resolve(data, response);
                 },
-                fail = function (e) {
-                    console.log(e);
-                    dfd.reject(e);
+                fail = function (data, response) {
+                    dfd.reject(data, response);
                 };
 
             for (driver in drivers) {
